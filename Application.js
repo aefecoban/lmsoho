@@ -15,6 +15,7 @@ module.exports = class Application {
     constructor() {
         this.app = new Koa();
         this.parser = new BodyParser();
+        
         //const MONGODB_URI = process.env.MONGODB_URI || "mongodb://localhost:27017/defaultDB";
         this.db = new Database("mongodb+srv://root:242324@cluster0.djrdn.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0");
 
