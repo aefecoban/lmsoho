@@ -10,21 +10,37 @@ const cors = require("@koa/cors");
 const path = require('path');
 const fs = require('fs');
 
-module.exports = class Application{
+module.exports = class Application {
 
-    constructor(){
+    constructor() {
         this.app = new Koa();
         this.parser = new BodyParser();
-        const MONGODB_URI = process.env.MONGODB_URI || "mongodb://localhost:27017/defaultDB";
-        this.db = new Database(MONGODB_URI);
+        //const MONGODB_URI = process.env.MONGODB_URI || "mongodb://localhost:27017/defaultDB";
+        this.db = new Database("mongodb+srv://root:242324@cluster0.djrdn.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0");
 
         this.port = 9090;
 
         this.app.use(this.parser);
-        this.app.use(cors());
+        this.app.use(cors({
+            origin: process.env.REACT_APP_API_URL,
+            allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+            allowHeaders: ['Content-Type', 'Authorization', 'X-Content-Type-Options', 'Accept', 'X-Requested-With', 'Origin', 'Access-Control-Request-Method', 'Access-Control-Request-Headers'],
+            credentials: true,
+            maxAge: 7200,
+            privateNetworkAccess: true,
+        }));
 
-        this.staticPath = path.join(__dirname, 'dist');
-        this.app.use(serve(this.staticPath));
+        this.app.use(async (ctx, next) => {
+            if (ctx.method === 'OPTIONS') {
+                ctx.set('Access-Control-Allow-Origin', process.env.REACT_APP_API_URL);
+                ctx.set('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+                ctx.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+                ctx.set('Access-Control-Allow-Credentials', 'true');
+                ctx.status = 204;
+                return;
+            }
+            await next();
+        });
 
         this.Router = new Router();
 
@@ -41,21 +57,38 @@ module.exports = class Application{
         });
     }
 
-    Start(){
+    Start() {
         this.db.Start();
 
-        this.app.use((ctx, next) => {
-            ctx.set("Access-Control-Allow-Origin", "*");
-            ctx.set("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept");
-            ctx.db = this.db;
-            return next();
-        })
+        this.app.use(cors({
+            origin: process.env.REACT_APP_API_URL,
+            allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+            allowHeaders: ['Content-Type', 'Authorization', 'X-Content-Type-Options', 'Accept', 'X-Requested-With', 'Origin', 'Access-Control-Request-Method', 'Access-Control-Request-Headers'],
+            credentials: true,
+            maxAge: 7200,
+            privateNetworkAccess: true,
+        }));
 
         this.Route();
+        this.SetupStaticFiles();
         this.Listen();
     }
 
-    Route(){
+    SetupStaticFiles() {
+        const staticPath = path.join(__dirname, 'dist');
+        this.app.use(serve(staticPath));
+
+        this.app.use(async (ctx, next) => {
+            if (ctx.status === 404 && ctx.path.indexOf('/api') !== 0) {
+                ctx.type = 'html';
+                ctx.body = fs.createReadStream(path.join(staticPath, 'index.html'));
+            } else {
+                await next();
+            }
+        });
+    }
+
+    Route() {
         this.APIRouter.use(APIRoute.UserMW);
         this.AdminRouter.use(AdminRoute.AdminMiddleWare);
 
@@ -118,36 +151,24 @@ module.exports = class Application{
         this.APIRouter.get("/notifications", (ctx) => APIRoute.GetNotifications(ctx));
         this.APIRouter.put("/notifications:id", (ctx) => APIRoute.ReadedNotifications(ctx));
         // Bildirim Sistemi
-        
+
         // Eğitim Görüntüleme
         this.APIRouter.get("/courses", (ctx) => APIRoute.GetCourses(ctx));
         this.APIRouter.get("/courses/:id", (ctx) => APIRoute.GetCourse(ctx));
         this.APIRouter.put("/progress", (ctx) => APIRoute.ModifyProgress(ctx));
         this.APIRouter.get("/progress/:id", (ctx) => APIRoute.GetProgress(ctx));
         // Eğitim Görüntüleme
-        
+
         // Kullanıcı
         this.APIRouter.post("/register", (ctx) => APIRoute.RegisterUser(ctx));
         this.APIRouter.post("/auth/profile", (ctx) => APIRoute.LoginUser(ctx));
         this.APIRouter.get("/auth/getprofile", (ctx) => APIRoute.GetUserInfo(ctx));
         this.APIRouter.put("/auth/profile", (ctx) => APIRoute.ModifyUser(ctx));
         // Kullanıcı
-        
-        this.app.use(async (ctx) => {
-            const indexPath = path.join(this.staticPath, 'index.html');
-            console.log(indexPath);
-            try {
-              ctx.body = fs.createReadStream(indexPath);
-            } catch (err) {
-                console.log(err);
-              ctx.status = 404;
-              ctx.body = '404 Not Found';
-            }
-        });
-          
+
     }
 
-    Listen(){
+    Listen() {
         this.app.use(this.Router.routes()).use(this.Router.allowedMethods());
         this.app.use(this.APIRouter.routes()).use(this.APIRouter.allowedMethods());
         this.app.use(this.AdminRouter.routes()).use(this.AdminRouter.allowedMethods());
