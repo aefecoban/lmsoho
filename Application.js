@@ -165,6 +165,10 @@ module.exports = class Application {
         this.APIRouter.put("/auth/profile", (ctx) => APIRoute.ModifyUser(ctx));
         // Kullanıcı
 
+        this.app.use(this.Router.routes()).use(this.Router.allowedMethods());
+        this.app.use(this.APIRouter.routes()).use(this.APIRouter.allowedMethods());
+        this.app.use(this.AdminRouter.routes()).use(this.AdminRouter.allowedMethods());
+        this.app.use(this.InstructorRouter.routes()).use(this.InstructorRouter.allowedMethods());
     }
 
     Listen() {
