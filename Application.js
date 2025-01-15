@@ -56,23 +56,21 @@ module.exports = class Application {
         this.APIRouter = new Router({
             prefix: "/api"
         });
+        
+        this.SetupRoutes();
+    }
+
+    // This function will handle requests in the serverless environment
+    async HandleRequest(req, res) {
+        const ctx = this.app.createContext(req, res);
+        
+        // Start routing
+        await this.app.handleRequest(ctx.req, ctx.res);
     }
 
     Start() {
         this.db.Start();
-
-        this.app.use(cors({
-            origin: process.env.REACT_APP_API_URL,
-            allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-            allowHeaders: ['Content-Type', 'Authorization', 'X-Content-Type-Options', 'Accept', 'X-Requested-With', 'Origin', 'Access-Control-Request-Method', 'Access-Control-Request-Headers'],
-            credentials: true,
-            maxAge: 7200,
-            privateNetworkAccess: true,
-        }));
-
-        this.Route();
         this.SetupStaticFiles();
-        this.Listen();
     }
 
     SetupStaticFiles() {
@@ -89,7 +87,7 @@ module.exports = class Application {
         });
     }
 
-    Route() {
+    SetupRoutes() {
         this.APIRouter.use(APIRoute.UserMW);
         this.AdminRouter.use(AdminRoute.AdminMiddleWare);
 
