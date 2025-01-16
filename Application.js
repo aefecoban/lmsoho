@@ -1,5 +1,4 @@
 const Koa = require("koa");
-const serve = require("koa-static");
 const Router = require("koa-router");
 const BodyParser = require("koa-bodyparser");
 const AdminRoute = require("./Routes/AdminRoute");
@@ -9,6 +8,8 @@ const Database = require("./Database/Database")
 const cors = require("@koa/cors");
 const path = require('path');
 const fs = require('fs');
+const serve = require('koa-static');
+const send = require('koa-send');
 
 module.exports = class Application {
 
@@ -76,16 +77,21 @@ module.exports = class Application {
 
     SetupStaticFiles() {
         const staticPath = path.join(__dirname, 'dist');
+        this.app.use(async (ctx, next) => {
+            if (ctx.path.endsWith('.js')) {
+                ctx.type = 'application/javascript';
+            }
+            await next();
+        });
+
         this.app.use(serve(staticPath));
 
-        this.app.use(async (ctx, next) => {
-            if (ctx.status === 404 && ctx.path.indexOf('/api') !== 0) {
-                ctx.type = 'html';
-                ctx.body = fs.createReadStream(path.join(staticPath, 'index.html'));
-            } else {
-                await next();
+        this.app.use(async (ctx) => {
+            if (!ctx.path.startsWith('/api') && ctx.method === 'GET') {
+                await send(ctx, 'index.html', { root: staticPath });
             }
         });
+
     }
 
     Route() {
