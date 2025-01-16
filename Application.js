@@ -82,10 +82,19 @@ module.exports = class Application {
             if (ctx.path === '/index.js') {
                 const distPath = path.join(staticPath, 'index.js');
                 if (fs.existsSync(distPath)) {
-                    ctx.type = 'application/javascript';
-                    console.log("indexjs send");
-                    await send(ctx, 'index.js', { root: staticPath });
-                    return;
+                    try{
+                        const content = fs.readFileSync(distPath, 'utf8');
+                        console.log("indexjs send");
+                        ctx.type = 'application/javascript';
+                        ctx.body = content;
+                        console.log("File content length:", content.length);
+                        return;
+                    }catch(error){
+                        console.log(error);
+                        ctx.status = 500;
+                        ctx.body = "Error serving file";
+                        return;
+                    }
                 }
                 console.log("indexjs not found");
             }
