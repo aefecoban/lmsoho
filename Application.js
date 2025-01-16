@@ -77,8 +77,21 @@ module.exports = class Application {
 
     SetupStaticFiles() {
         const staticPath = path.join(__dirname, 'dist');
+    
+        this.app.use(async (ctx, next) => {
+            if (ctx.path === '/index.js') {
+                const distPath = path.join(staticPath, 'index.js');
+                if (fs.existsSync(distPath)) {
+                    ctx.type = 'application/javascript';
+                    console.log("indexjs send");
+                    await send(ctx, 'index.js', { root: staticPath });
+                    return;
+                }
+                console.log("indexjs not found");
+            }
+            await next();
+        });
         
-        // Assets klasörü için özel middleware
         this.app.use(async (ctx, next) => {
             if (ctx.path.startsWith('/assets/')) {
                 try {
