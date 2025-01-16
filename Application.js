@@ -15,11 +15,10 @@ module.exports = class Application {
     constructor() {
         this.app = new Koa();
         this.parser = new BodyParser();
-        
         //const MONGODB_URI = process.env.MONGODB_URI || "mongodb://localhost:27017/defaultDB";
         this.db = new Database("mongodb+srv://root:242324@cluster0.djrdn.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0");
 
-        this.port = 9090;
+        this.port = 80;
 
         this.app.use(this.parser);
         this.app.use(cors({
@@ -56,21 +55,23 @@ module.exports = class Application {
         this.APIRouter = new Router({
             prefix: "/api"
         });
-        
-        this.SetupRoutes();
-    }
-
-    // This function will handle requests in the serverless environment
-    async HandleRequest(req, res) {
-        const ctx = this.app.createContext(req, res);
-        
-        // Start routing
-        await this.app.handleRequest(ctx.req, ctx.res);
     }
 
     Start() {
         this.db.Start();
+
+        this.app.use(cors({
+            origin: process.env.REACT_APP_API_URL,
+            allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+            allowHeaders: ['Content-Type', 'Authorization', 'X-Content-Type-Options', 'Accept', 'X-Requested-With', 'Origin', 'Access-Control-Request-Method', 'Access-Control-Request-Headers'],
+            credentials: true,
+            maxAge: 7200,
+            privateNetworkAccess: true,
+        }));
+
+        this.Route();
         this.SetupStaticFiles();
+        this.Listen();
     }
 
     SetupStaticFiles() {
@@ -87,7 +88,7 @@ module.exports = class Application {
         });
     }
 
-    SetupRoutes() {
+    Route() {
         this.APIRouter.use(APIRoute.UserMW);
         this.AdminRouter.use(AdminRoute.AdminMiddleWare);
 
@@ -165,10 +166,6 @@ module.exports = class Application {
         this.APIRouter.put("/auth/profile", (ctx) => APIRoute.ModifyUser(ctx));
         // Kullanıcı
 
-        this.app.use(this.Router.routes()).use(this.Router.allowedMethods());
-        this.app.use(this.APIRouter.routes()).use(this.APIRouter.allowedMethods());
-        this.app.use(this.AdminRouter.routes()).use(this.AdminRouter.allowedMethods());
-        this.app.use(this.InstructorRouter.routes()).use(this.InstructorRouter.allowedMethods());
     }
 
     Listen() {
