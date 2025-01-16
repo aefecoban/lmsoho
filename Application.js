@@ -77,21 +77,42 @@ module.exports = class Application {
 
     SetupStaticFiles() {
         const staticPath = path.join(__dirname, 'dist');
+        
+        // Assets klasörü için özel middleware
         this.app.use(async (ctx, next) => {
-            if (ctx.path.endsWith('.js')) {
-                ctx.type = 'application/javascript';
+            if (ctx.path.startsWith('/assets/')) {
+                try {
+                    await send(ctx, ctx.path, { root: staticPath });
+                } catch (err) {
+                    await next();
+                }
+                return;
             }
             await next();
         });
 
         this.app.use(serve(staticPath));
 
-        this.app.use(async (ctx) => {
-            if (!ctx.path.startsWith('/api') && ctx.method === 'GET') {
-                await send(ctx, 'index.html', { root: staticPath });
+        this.app.use(async (ctx, next) => {
+            // API rotalarını es geç
+            if (ctx.path.startsWith('/api')) {
+                return await next();
             }
+            
+            // Eğer path '/' ise veya statik dosya bulunamadıysa
+            if (ctx.method === 'GET' && (!ctx.path || ctx.path === '/' || ctx.status === 404)) {
+                ctx.type = 'html';
+                try {
+                    await send(ctx, 'index.html', { root: staticPath });
+                } catch (err) {
+                    ctx.status = 500;
+                    ctx.body = 'Internal Server Error';
+                }
+                return;
+            }
+            
+            await next();
         });
-
     }
 
     Route() {
